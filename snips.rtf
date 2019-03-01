@@ -1,0 +1,253 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1561\cocoasubrtf600
+{\fonttbl\f0\froman\fcharset0 Times-Roman;}
+{\colortbl;\red255\green255\blue255;\red128\green128\blue128;\red204\green120\blue50;\red169\green183\blue198;
+\red34\green34\blue34;\red165\green194\blue97;\red255\green198\blue109;\red104\green151\blue187;\red136\green136\blue198;
+}
+{\*\expandedcolortbl;;\csgenericrgb\c50196\c50196\c50196;\csgenericrgb\c80000\c47059\c19608;\csgenericrgb\c66275\c71765\c77647;
+\csgenericrgb\c13333\c13333\c13333;\csgenericrgb\c64706\c76078\c38039;\csgenericrgb\c100000\c77647\c42745;\csgenericrgb\c40784\c59216\c73333;\csgenericrgb\c53333\c53333\c77647;
+}
+\paperw12240\paperh15840\margl1440\margr1440\vieww10800\viewh8400\viewkind0
+\deftab720
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 \{\
+  "input": "ajoute un anniversaire pour le treize novembre",\
+  "intent": \{\
+    "intentName": "userName:addEvent",\
+    "probability": 0.9662896\
+  \},\
+  "slots": [\
+    \{\
+      "rawValue": "anniversaire",\
+      "value": \{\
+        "kind": "Custom",\
+        "value": "anniversaire"\
+      \},\
+      "range": \{\
+        "start": 10,\
+        "end": 22\
+      \},\
+      "entity": "Noms communs_fr",\
+      "slotName": "summary"\
+    \},\
+    \{\
+      "rawValue": "pour le treize novembre",\
+      "value": \{\
+        "kind": "InstantTime",\
+        "value": "2019-11-13 00:00:00 +00:00",\
+        "grain": "Day",\
+        "precision": "Exact"\
+      \},\
+      "range": \{\
+        "start": 23,\
+        "end": 46\
+      \},\
+      "entity": "snips/datetime",\
+      "slotName": "start_datetime"\
+    \}\
+  ]\
+\}\
+\
+\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\fs18 \cf2 #!usr/bin/env python2\
+# coding: utf-8\
+\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+\cf3 from \cf4 hermes_python.hermes \cf3 import \cf4 Hermes\
+\cf3 import \cf4 random\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\fs24 \cf5 \
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\fs18 \cf4 MQTT_HOST = \cf6 "localhost"\
+\cf4 MQTT_PORT = \cf6 "1883"  \cf2 # Standard MQTT port\
+\cf4 MQTT_URL = \cf6 "\{\}:\{\}"\cf4 .format(MQTT_HOST\cf3 , \cf4 MQTT_PORT)  \cf2 # ==> "localhost:1883"\
+\
+\cf4 SNIPS_USER_NAME = \cf6 "snips"\
+\cf4 INTENT_STARTS_QUIZ = \cf6 "\{\}:start_quiz"\cf4 .format(SNIPS_USER_NAME)  \cf2 # ==> "snips:start_quiz"\
+\cf4 INTENT_GIVES_ANSWER = \cf6 "\{\}:gives_answer"\cf4 .format(SNIPS_USER_NAME)  \cf2 # ==> "snips:gives_answer"\
+\cf4 INTENT_DOESNT_KNOW = \cf6 "\{\}:doesnt_know"\cf4 .format(SNIPS_USER_NAME)  \cf2 # ==> "snips:doesnt_know"\
+\
+\cf4 sessions_states = \{\}\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\fs24 \cf5 \
+\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\fs18 \cf3 def \cf7 starts_quiz\cf4 (hermes\cf3 , \cf4 intent_message):\
+   session_id = intent_message.session_id\
+\
+   \cf2 # Generating question\
+   \cf4 a = random.random() * \cf8 10 \cf4 + \cf8 1\
+   \cf4 b = random.random() * \cf8 10 \cf4 + \cf8 1\
+   \cf4 tts = \cf6 "What's \{\} times \{\} ?"\cf4 .format(a\cf3 , \cf4 b)\
+   sessions_states[session_id] = [a\cf3 , \cf4 b]\
+\
+   \cf2 # Define what the assistant is able to understand\
+   \cf4 intent_filter = [INTENT_DOESNT_KNOW\cf3 , \cf4 INTENT_GIVES_ANSWER]\
+\
+   hermes.publish_continue_session(session_id\cf3 , \cf4 tts\cf3 , \cf4 intent_filter)\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\fs24 \cf5 \
+\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\fs18 \cf3 def \cf7 gives_answer\cf4 (hermes\cf3 , \cf4 intent_message):\
+   session_id = intent_message.session_id\
+\
+   \cf2 # get answer from user\
+   \cf4 answer = intent_message.slot.get(\cf6 "answer"\cf4 )\
+   answer = \cf9 None \cf3 if \cf4 answer \cf3 is \cf9 None \cf3 else \cf4 answer.first().value\
+\
+   \cf2 # defines  TTS\
+   \cf4 tts_good = \cf6 "Good answer !"\
+   \cf4 tts_bad = \cf6 "Wrong answer ..."\
+   \cf4 tts_no_answer = \cf6 "I'm sorry I didn't get your answer"\
+   \cf2 tts \cf4 = \cf6 ""\
+\
+   \cf2 # Check user's answer\
+   \cf3 if \cf4 answer \cf3 is \cf9 None\cf4 :\
+       tts = tts_no_answer\
+   \cf3 elif \cf4 answer == sessions_states[session_id][\cf8 0\cf4 ] * sessions_states[session_id][\cf8 1\cf4 ]:\
+       tts = tts_good\
+   \cf3 else\cf4 :\
+       tts = tts_bad\
+\
+   hermes.publish_end_session(session_id\cf3 , \cf4 tts)\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\fs24 \cf5 \
+\
+\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\fs18 \cf3 def \cf7 doesnt_know\cf4 (hermes\cf3 , \cf4 intent_message):\
+   session_id = intent_message.session_id\
+   tts = \cf6 "Ok, at least try next time !"\
+\
+   \cf4 hermes.publish_end_session(session_id\cf3 , \cf4 tts)\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\fs24 \cf5 \
+\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\fs18 \cf3 def \cf7 session_ended\cf4 (\cf2 hermes\cf3 , \cf4 session_ended_message):\
+   \cf3 del \cf4 sessions_states[session_ended_message.session_id]\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\fs24 \cf5 \
+\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\fs18 \cf3 with \cf4 Hermes(MQTT_URL) \cf3 as \cf4 h:\
+\
+   \cf2 # Subscribe to intents\
+   \cf4 h.subscribe_intent(INTENT_STARTS_QUIZ\cf3 , \cf4 starts_quiz)\\\
+    .subscribe_intent(INTENT_GIVES_ANSWER\cf3 , \cf4 gives_answer)\\\
+    .subscribe_intent(INTENT_DOESNT_KNOW\cf3 , \cf4 doesnt_know)\
+\
+   \cf2 # Subscribe endSession\
+   \cf4 h.subscribe_session_ended(session_ended)\
+\
+   \cf2 # Start Listening\
+   \cf4 h.loop_forever()\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\fs24 \cf5 \
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\b \cf5 \ul \ulc5 \
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\b0\fs18 \cf2 \ulnone #!usr/bin/env python2\
+# coding: utf-8\
+\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+\cf3 from \cf4 hermes_python.hermes \cf3 import \cf4 Hermes\
+\cf3 import \cf4 random\
+\
+MQTT_HOST = \cf6 "localhost"\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+\cf4 MQTT_PORT = \cf6 "1883"  \cf2 # Standard MQTT port\
+\cf4 MQTT_URL = \cf6 "\{\}:\{\}"\cf4 .format(MQTT_HOST\cf3 , \cf4 MQTT_PORT)  \cf2 # ==> "localhost:1883"\
+\
+\cf4 SNIPS_USER_NAME = \cf6 "snips"\
+\cf4 INTENT_STARTS_QUIZ = \cf6 "\{\}:start_quiz"\cf4 .format(SNIPS_USER_NAME)  \cf2 # ==> "snips:start_quiz"\
+\cf4 INTENT_GIVES_ANSWER = \cf6 "\{\}:gives_answer"\cf4 .format(SNIPS_USER_NAME)  \cf2 # ==> "snips:gives_answer"\
+\cf4 INTENT_DOESNT_KNOW = \cf6 "\{\}:doesnt_know"\cf4 .format(SNIPS_USER_NAME)  \cf2 # ==> "snips:doesnt_know"\
+\
+\cf4 sessions_states = \{\}\
+\
+\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+\cf3 def \cf7 starts_quiz\cf4 (hermes\cf3 , \cf4 intent_message):\
+   session_id = intent_message.session_id\
+\
+   \cf2 # Generating question\
+   \cf4 a = random.random() * \cf8 10 \cf4 + \cf8 1\
+   \cf4 b = random.random() * \cf8 10 \cf4 + \cf8 1\
+   \cf4 tts = \cf6 "What's \{\} times \{\} ?"\cf4 .format(a\cf3 , \cf4 b)\
+   sessions_states[session_id] = [a\cf3 , \cf4 b]\
+\
+   \cf2 # Define what the assistant is able to understand\
+   \cf4 intent_filter = [INTENT_DOESNT_KNOW\cf3 , \cf4 INTENT_GIVES_ANSWER]\
+\
+   hermes.publish_continue_session(session_id\cf3 , \cf4 tts\cf3 , \cf4 intent_filter)\
+\
+\
+\cf3 def \cf7 gives_answer\cf4 (hermes\cf3 , \cf4 intent_message):\
+   session_id = intent_message.session_id\
+\
+   \cf2 # get answer from user\
+   \cf4 answer = intent_message.slot.get(\cf6 "answer"\cf4 )\
+   answer = \cf9 None \cf3 if \cf4 answer \cf3 is \cf9 None \cf3 else \cf4 answer.first().value\
+\
+   \cf2 # defines  TTS\
+   \cf4 tts_good = \cf6 "Good answer !"\
+   \cf4 tts_bad = \cf6 "Wrong answer ..."\
+   \cf4 tts_no_answer = \cf6 "I'm sorry I didn't get your answer"\
+   \cf2 tts \cf4 = \cf6 ""\
+\
+   \cf2 # Check user's answer\
+   \cf3 if \cf4 answer \cf3 is \cf9 None\cf4 :\
+       tts = tts_no_answer\
+   \cf3 elif \cf4 answer == sessions_states[session_id][\cf8 0\cf4 ] * sessions_states[session_id][\cf8 1\cf4 ]:\
+       tts = tts_good\
+   \cf3 else\cf4 :\
+       tts = tts_bad\
+\
+   hermes.publish_end_session(session_id\cf3 , \cf4 tts)\
+\
+\
+\cf3 def \cf7 doesnt_know\cf4 (hermes\cf3 , \cf4 intent_message):\
+   session_id = intent_message.session_id\
+   tts = \cf6 "Ok, at least try next time !"\
+\
+   \cf4 hermes.publish_end_session(session_id\cf3 , \cf4 tts)\
+\
+\
+\cf3 def \cf7 session_ended\cf4 (\cf2 hermes\cf3 , \cf4 session_ended_message):\
+   \cf3 del \cf4 sessions_states[session_ended_message.session_id]\
+\
+\
+\cf3 with \cf4 Hermes(MQTT_URL) \cf3 as \cf4 h:\
+\
+   \cf2 # Subscribe to intents\
+   \cf4 h.subscribe_intent(INTENT_STARTS_QUIZ\cf3 , \cf4 starts_quiz)\\\
+    .subscribe_intent(INTENT_GIVES_ANSWER\cf3 , \cf4 gives_answer)\\\
+    .subscribe_intent(INTENT_DOESNT_KNOW\cf3 , \cf4 doesnt_know)\
+\
+   \cf2 # Subscribe endSession\
+   \cf4 h.subscribe_session_ended(session_ended)\
+\
+   \cf2 # Start Listening\
+   \cf4 h.loop_forever()\
+\
+\
+}

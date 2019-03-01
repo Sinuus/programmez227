@@ -1,0 +1,361 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1561\cocoasubrtf600
+{\fonttbl\f0\froman\fcharset0 TimesNewRomanPSMT;\f1\fnil\fcharset0 Consolas;\f2\froman\fcharset0 Times-Roman;
+}
+{\colortbl;\red255\green255\blue255;\red64\green64\blue64;\red0\green0\blue255;\red0\green0\blue0;
+\red43\green145\blue175;\red163\green21\blue21;\red0\green128\blue0;}
+{\*\expandedcolortbl;;\csgenericrgb\c25098\c25098\c25098;\csgenericrgb\c0\c0\c100000;\csgenericrgb\c0\c0\c0;
+\csgenericrgb\c16863\c56863\c68627;\csgenericrgb\c63922\c8235\c8235;\csgenericrgb\c0\c50196\c0;}
+{\info
+{\author Anthony Giretti}}\paperw12240\paperh15840\margl1440\margr1440\vieww10800\viewh8400\viewkind0
+\deftab720
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\f0\fs20 \cf2 \
+\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\f1\fs16 \cf3 namespace\cf4  WebApiDemo.Models\
+\{\
+    \cf3 public\cf4  \cf3 class\cf4  \cf5 Error\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+\cf4     \{\
+        \cf3 public\cf4  \cf3 string\cf4  Code \{ \cf3 get\cf4 ; \cf3 set\cf4 ; \}\
+        \cf3 public\cf4  \cf3 string\cf4  Message \{ \cf3 get\cf4 ; \cf3 set\cf4 ; \}\
+        \cf3 public\cf4  IEnumerable<\cf3 string\cf4 > Errors \{ \cf3 get\cf4 ; \cf3 set\cf4 ; \}\
+    \}\
+\}\
+\
+\
+\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\f2 \cf3 using\cf4  Microsoft.AspNetCore.Http;\
+\cf3 using\cf4  Microsoft.Extensions.Logging;\
+\cf3 using\cf4  Newtonsoft.Json;\
+\cf3 using\cf4  System;\
+\cf3 using\cf4  System.Collections.Generic;\
+\cf3 using\cf4  System.Net;\
+\cf3 using\cf4  System.Threading.Tasks;\
+\cf3 using\cf4  WebApiDemo.Models;\
+\
+\cf3 namespace\cf4  WebApiDemo.Middlewares\
+\{\
+    \cf3 public\cf4  \cf3 class\cf4  \cf5 CustomExceptionMiddleware\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+\cf4     \{\
+        \cf3 private\cf4  \cf3 readonly\cf4  RequestDelegate _next;\
+        \cf3 private\cf4  \cf3 readonly\cf4  ILogger<CustomExceptionMiddleware> _logger;\
+\
+        \cf3 public\cf4  CustomExceptionMiddleware(RequestDelegate next, ILogger<CustomExceptionMiddleware> logger)\
+        \{\
+            _next = next;\
+            _logger = logger;\
+        \}\
+\
+        \cf3 public\cf4  \cf3 async\cf4  Task Invoke(HttpContext context)\
+        \{\
+            \cf3 try\
+\cf4             \{\
+                \cf3 await\cf4  _next.Invoke(context);\
+            \}\
+            \cf3 catch\cf4  (Exception ex)\
+            \{\
+                \cf3 await\cf4  HandleExceptionAsync(context, ex);\
+            \}\
+        \}\
+\
+        \cf3 private\cf4  \cf3 async\cf4  Task HandleExceptionAsync(HttpContext context, Exception exception)\
+        \{\
+            \cf3 var\cf4  response = context.Response;\
+            \cf3 var\cf4  message = \cf6 "Unhandled error"\cf4 ;\
+            \cf3 var\cf4  code = \cf6 "00009"\cf4 ;\
+            \cf3 var\cf4  errors = \cf3 new\cf4  List<\cf3 string\cf4 >();\
+\
+            response.ContentType = \cf6 "application/json"\cf4 ;\
+            response.StatusCode = (\cf3 int\cf4 )HttpStatusCode.InternalServerError;\
+\
+            \cf7 // log de l\'92erreur\
+\cf4             _logger.LogError(exception, exception.Message);\
+            \
+            \cf7 // R\'e9ponse\
+\cf4             \cf3 await\cf4  response.WriteAsync(JsonConvert.SerializeObject(\cf3 new\cf4  Error\
+            \{\
+                Code = code,\
+                Message = message,\
+                Errors = errors\
+            \}));\
+        \}\
+    \}\
+\}\
+\pard\pardeftab720\sb150\sa150\pardirnatural\partightenfactor0
+\cf4 \
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\f0\fs20 \cf2 \
+\
+\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\f2\fs16 \cf7 //\
+// Summary:\
+//     A function that can process an HTTP request.\
+//\
+// Parameters:\
+//   context:\
+//     The Microsoft.AspNetCore.Http.HttpContext for the request.\
+//\
+// Returns:\
+//     A task that represents the completion of request processing.\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+\cf4  \cf3 public\cf4  \cf3 delegate\cf4  Task \cf5 RequestDelegate\cf4 (HttpContext context);\
+\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\f1 \cf3 using\cf4  FluentAssertions;\
+\cf3 using\cf4  Microsoft.AspNetCore.Http;\
+\cf3 using\cf4  Microsoft.Extensions.Logging;\
+\cf3 using\cf4  Newtonsoft.Json;\
+\cf3 using\cf4  NSubstitute;\
+\cf3 using\cf4  System;\
+\cf3 using\cf4  System.Collections.Generic;\
+\cf3 using\cf4  System.IO;\
+\cf3 using\cf4  System.Net;\
+\cf3 using\cf4  System.Threading.Tasks;\
+\cf3 using\cf4  WebApiDemo.Middlewares;\
+\cf3 using\cf4  WebApiDemo.Models;\
+\cf3 using\cf4  Xunit;\
+\
+\cf3 namespace\cf4  UnitTestsDemo\
+\{\
+    \cf3 public\cf4  \cf3 class\cf4  \cf5 CustomExceptionMiddlewareTests\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+\cf4     \{\
+        [Fact]\
+        \cf3 public\cf4  \cf3 async\cf4  Task WhenAGenericExceptionIsRaised_CustomExceptionMiddlewareShouldHandleItToProperErrorResponseAndLoggerCalled()\
+        \{\
+            // Test ici\
+        \}\
+    \}\
+\}\
+\pard\pardeftab720\sb150\sa150\pardirnatural\partightenfactor0
+
+\f0\fs20 \cf2 \
+\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+\cf2 \
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\f1\fs16 \cf4 [Fact]\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+\cf3 public\cf4  \cf3 async\cf4  Task WhenAGenericExceptionIsRaised_CustomExceptionMiddlewareShouldHandleItToProperErrorResponseAndLoggerCalled()\
+\{\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+\cf7 // Arrange\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+\cf4        \cf3 var\cf4  loggerMock = Substitute.For<ILogger<CustomExceptionMiddleware>>();\
+       RequestDelegate requestDelegate = ((innerHttpContext) =>\
+       \{\
+       	\cf3 throw\cf4  \cf3 new\cf4  Exception(\cf6 "Oooops error!"\cf4 );\
+       \};\
+       \cf3 var\cf4  middleware = \cf3 new\cf4  CustomExceptionMiddleware(requestDelegate, loggerMock);\
+\
+       \cf3 var\cf4  context = \cf3 new\cf4  DefaultHttpContext();\
+\
+       context.Response.Body = \cf3 new\cf4  MemoryStream();	\
+\}\
+\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\f0\fs20 \cf2 \
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\f2 \cf4 \
+\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\f0 \cf2 \
+\
+\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\f1\fs16 \cf7 //Act\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\f2 \cf3 await\cf4  middleware.Invoke(context);\
+\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\f0\fs20 \cf2 \
+\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\f2\fs16 \cf7 //Assert\
+// repositionnement au d\'e9but\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+\cf4 context.Response.Body.Seek(0, SeekOrigin.Begin);\
+\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+\cf7 // Lecture de la r\'e9ponse\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+\cf3 var\cf4  reader = \cf3 new\cf4  StreamReader(context.Response.Body);\
+\cf3 var\cf4  streamText = reader.ReadToEnd();\
+\cf3 var\cf4  objResponse = JsonConvert.DeserializeObject<Error>(streamText);\
+\
+objResponse\
+ .Should()\
+ .BeEquivalentTo(\cf3 new\cf4  \{ Message = \cf6 "Unhandled error"\cf4 , Errors = \cf3 new\cf4  List<\cf3 string\cf4 >() , Code = \cf6 "00009"\cf4  \});\
+\
+ context.Response.StatusCode\
+ .Should()\
+ .Be((\cf3 int\cf4 )HttpStatusCode.InternalServerError);\
+\
+context.Response.ContentType\
+.Should()\
+ .Be(\cf6 "application/json"\cf4 );\
+\
+ loggerMock.Received(1);\
+\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\f0\fs20 \cf2 \
+\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\i \cf2 \
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\f2\i0\fs16 \cf3 using\cf4  Microsoft.AspNetCore.Hosting;\
+\cf3 using\cf4  Microsoft.AspNetCore.TestHost;\
+\cf3 using\cf4  System;\
+\cf3 using\cf4  System.Net.Http;\
+\cf3 using\cf4  WebApiDemo;\
+\
+\cf3 namespace\cf4  IntegrationTestsDemo\
+\{\
+    \cf3 public\cf4  \cf3 class\cf4  \cf5 TestServerFixture\cf4  : IDisposable\
+    \{\
+        \cf3 private\cf4  \cf3 readonly\cf4  TestServer _testServer;\
+        \cf3 public\cf4  HttpClient Client \{ \cf3 get\cf4 ; \}\
+\
+        \cf3 public\cf4  TestServerFixture()\
+        \{\
+            \cf3 var\cf4  builder = \cf3 new\cf4  WebHostBuilder()\
+                   .UseEnvironment(\cf6 "Development"\cf4 )\
+                   .UseStartup<Startup>();\
+\
+            _testServer = \cf3 new\cf4  TestServer(builder);\
+            Client = _testServer.CreateClient();\
+\
+        \}\
+\
+        \cf3 public\cf4  \cf3 void\cf4  Dispose()\
+        \{\
+            Client.Dispose();\
+            _testServer.Dispose();\
+        \}\
+    \}\
+\}\
+\
+\pard\pardeftab720\sb150\sa150\pardirnatural\partightenfactor0
+
+\f0\fs36 \cf2 \
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\fs20 \cf2 \
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\f2\fs16 \cf3 using\cf4  Microsoft.AspNetCore.Mvc;\
+\cf3 using\cf4  System;\
+\cf3 using\cf4  System.Collections.Generic;\
+\
+\cf3 namespace\cf4  WebApiDemo.Controllers\
+\{\
+    [Route(\cf6 "api/[controller]"\cf4 )]\
+    [ApiController]\
+    \cf3 public\cf4  \cf3 class\cf4  \cf5 DemoExceptionController\cf4  : ControllerBase\
+    \{\
+        \cf3 public\cf4  DemoExceptionController()\
+        \{\
+        \}\
+\
+        [HttpGet]\
+        \cf3 public\cf4  IEnumerable<\cf3 string\cf4 > Get()\
+        \{\
+            \cf3 throw\cf4  \cf3 new\cf4  Exception(\cf6 "bouhhhh quelle affreuse erreur!"\cf4 );\
+            \cf3 return\cf4  \cf3 new\cf4  \cf3 string\cf4 [] \{ \cf6 "value1"\cf4 , \cf6 "value2"\cf4  \};\
+        \}\
+\
+    \}\
+\}\
+\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\f0\fs20 \cf2 \
+\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\f1\fs16 \cf3 using\cf4  FluentAssertions;\
+\cf3 using\cf4  System.Collections.Generic;\
+\cf3 using\cf4  System.Net;\
+\cf3 using\cf4  System.Net.Http;\
+\cf3 using\cf4  System.Threading.Tasks;\
+\cf3 using\cf4  WebApiDemo.Models;\
+\cf3 using\cf4  Xunit;\
+\
+\cf3 namespace\cf4  IntegrationTestsDemo\
+\{\
+    \cf3 public\cf4  \cf3 class\cf4  \cf5 DemoExceptionControllerTests\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+\cf4     \{\
+        [Fact]\
+        \cf3 public\cf4  \cf3 async\cf4  Task WhenGetMethodRaiseAnException_WebAPIShouldHandleItandAnswerAProperErrorObjectAndStatusError500()\
+        \{\
+            \cf7 //Arrange\
+\cf4             \cf3 using\cf4  (TestServerFixture fixture = \cf3 new\cf4  TestServerFixture())\
+            \{\
+                \cf7 // Act\
+\cf4                 \cf3 var\cf4  response = \cf3 await\cf4  fixture.Client.GetAsync(\cf6 "/api/DemoException"\cf4 );\
+\
+                \cf7 // Assert\
+\cf4                 \cf3 var\cf4  responseData = \cf3 await\cf4  response\
+                .Content\
+                .ReadAsAsync<Error>();\
+\
+                responseData\
+                .Should()\
+                .BeEquivalentTo(\cf3 new\cf4  Error \{ Message = \cf6 "Unhandled error"\cf4 , Errors = \cf3 new\cf4  List<\cf3 string\cf4 >(), Code = \cf6 "00009"\cf4  \});\
+\
+                response.StatusCode\
+                .Should()\
+                .Be((\cf3 int\cf4 )HttpStatusCode.InternalServerError);\
+\
+                response\
+                .Content\
+                .Headers\
+                .ContentType\
+                .MediaType\
+                .Should()\
+                .Be(\cf6 "application/json"\cf4 );\
+            \}\
+\
+        \}\
+\
+       \
+    \}\
+\}\
+\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\f0\fs20 \cf2 \
+\
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\f1\fs16 \cf3 var\cf4  responseData = \cf3 await\cf4  response\
+                .Content\
+                .ReadAsAsync<Error>();\
+\
+                responseData\
+                .Should()\
+                .BeEquivalentTo(\cf3 new\cf4  Error \{ Message = \cf6 "Unhandled error"\cf4 , Errors = \cf3 new\cf4  List<\cf3 string\cf4 >(), Code = \cf6 "00009"\cf4  \});\
+\
+}
